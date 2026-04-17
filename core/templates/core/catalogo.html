@@ -1,0 +1,235 @@
+﻿{% extends "core/base.html" %}
+{% load static humanize %}
+
+{% block title %}Catálogo — Distribuidora Talagante{% endblock %}
+
+{% block content %}
+<div class="catalogo">
+  <main class="container">
+
+    <form method="get" class="filters mb-4">
+      <div class="row g-3">
+        <div class="col-auto">
+          <select name="categoria" class="form-select">
+            <option value="">Todas las categorías</option>
+            {% for c in categorias %}
+              <option value="{{ c }}" {% if request.GET.categoria == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <input type="number" min="0" step="100" name="precio_max" value="{{ request.GET.precio_max }}" 
+                 placeholder="Precio máximo" class="form-control">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-primary" type="submit">Filtrar</button>
+        </div>
+      </div>
+    </form>
+
+    <section class="product-grid">
+      {% if productos %}
+        {% for p in productos %}
+          <article class="product-card">
+            <div class="product-media">
+              {% if p.imagen %}
+                <img src="{{ p.imagen.url }}" alt="{{ p.nombre }}">
+              {% else %}
+                <img src="{% static 'core/img/placeholder.png' %}" alt="{{ p.nombre }}">
+              {% endif %}
+            </div>
+
+            <div class="product-body">
+              <h3 class="product-title">{{ p.nombre }}</h3>
+              <div class="product-cat text-muted small">{{ p.categoria }}</div>
+
+              <div class="product-price fs-4 fw-bold text-success">
+                {% if p.es_granel %}
+                  ${{ p.precio|floatformat:0|intcomma }} <small class="text-muted">/ kg</small>
+                {% else %}
+                  ${{ p.precio|floatformat:0|intcomma }}
+                {% endif %}
+              </div>
+
+              <div class="mb-3">
+                {% if p.stock > 0 %}
+                  <span class="badge bg-success fs-6">
+                    Stock: {{ p.stock|floatformat:"-3" }} 
+                    {% if p.es_granel %}kg{% else %}{{ p.get_unidad_medida_display|default:"un" }}{% endif %}
+                  </span>
+                {% else %}
+                  <span class="badge bg-danger fs-6">Sin stock</span>
+                {% endif %}
+              </div>
+
+              <!-- Formulario para productos no granel (normal) -->
+              <form action="{% url 'add_to_carrito' p.id %}" method="post" class="mt-auto">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                  {% if p.es_granel %}
+                    <!-- Botón que abre la calculadora de monto -->
+                    <button type="button" class="btn btn-outline-info w-100" 
+                            onclick="abrirCalculadora('{{ p.id }}', '{{ p.nombre }}', '{{ p.precio|floatformat:0 }}')">
+                      <i class="bi bi-calculator"></i> Calcular Peso por Monto $
+                    </button>
+                    <!-- Campo oculto para mantener el producto_id en el modal (se usa en el script) -->
+                    <input type="hidden" id="producto-id-{{ p.id }}" value="{{ p.id }}">
+                  {% else %}
+                    <div class="d-flex gap-2 align-items-center">
+                        <label class="fw-bold">Cantidad:</label>
+                        <input type="number" 
+                               name="cantidad" 
+                               value="1" 
+                               min="1" 
+                               step="1" 
+                               class="form-control text-center"
+                               style="width: 80px;"
+                               {% if p.stock <= 0 %}disabled{% endif %}>
+                        <small class="text-muted">{{ p.get_unidad_medida_display|default:"un" }}</small>
+                    </div>
+                  {% endif %}
+                </div>
+
+                {% if p.stock > 0 %}
+                  <button type="submit" 
+                          id="btn-submit-{{ p.id }}" 
+                          class="btn btn-primary w-100">
+                    Añadir al carrito
+                  </button>
+                {% else %}
+                  <button type="button" class="btn btn-secondary w-100" disabled>
+                    Sin stock
+                  </button>
+                {% endif %}
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      {% else %}
+        <div class="text-center py-5">
+          <h3>No hay productos que coincidan con tu búsqueda</h3>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+
+<!-- Modal para productos a granel (ingreso por monto) -->
+<div class="modal fade" id="modalGranel" tabindex="-1" aria-labelledby="modalGranelLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="modalGranelLabel">Calculadora de Pesaje</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <h4 id="calc-nombre-prod" class="text-center mb-3"></h4>
+        <p class="text-center">Precio por Kilo: <strong id="calc-precio-prod"></strong></p>
+        
+        <div class="mb-3">
+          <label class="form-label">Ingrese monto en dinero ($)</label>
+          <input type="number" id="input-monto-dinero" class="form-control form-control-lg text-center" placeholder="Ej: 3500">
+        </div>
+
+        <div class="alert alert-info text-center py-4">
+          <h2 class="mb-0"><span id="resultado-kg">0.000</span> kg</h2>
+          <p class="mb-0 text-muted">(Equivale a <span id="resultado-gr">0</span> gramos)</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="aplicarCalculo()">Confirmar Pesaje</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SCRIPT CORREGIDO (envía monto en pesos) ========== -->
+<script>
+  // Variables globales para el modal
+  let productoIdActual = null;
+  let precioPorKiloActual = 0;
+
+  // Función para obtener el token CSRF desde la cookie
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // Abrir el modal y guardar los datos del producto
+  function abrirCalculadora(id, nombre, precio) {
+    productoIdActual = id;
+    let precioLimpio = precio.toString().replace(/[^\d.-]/g, '');
+    precioPorKiloActual = parseFloat(precioLimpio);
+    
+    document.getElementById('calc-nombre-prod').innerText = nombre;
+    document.getElementById('calc-precio-prod').innerText = "$" + Math.round(precioPorKiloActual).toLocaleString('es-CL');
+    
+    document.getElementById('input-monto-dinero').value = '';
+    document.getElementById('resultado-kg').innerText = '0.000';
+    document.getElementById('resultado-gr').innerText = '0';
+
+    var myModal = new bootstrap.Modal(document.getElementById('modalGranel'));
+    myModal.show();
+  }
+
+  // Actualizar la vista previa de kg y gramos mientras escribe el monto
+  document.getElementById('input-monto-dinero').addEventListener('input', function(e) {
+    const dinero = parseFloat(e.target.value);
+    if (dinero > 0 && precioPorKiloActual > 0) {
+      const kg = dinero / precioPorKiloActual;
+      document.getElementById('resultado-kg').innerText = kg.toFixed(3);
+      document.getElementById('resultado-gr').innerText = Math.round(kg * 1000);
+    } else {
+      document.getElementById('resultado-kg').innerText = '0.000';
+      document.getElementById('resultado-gr').innerText = '0';
+    }
+  });
+
+  // Acción al presionar "Confirmar Pesaje" → envía el monto real al carrito
+  function aplicarCalculo() {
+    const montoTexto = document.getElementById('input-monto-dinero').value.trim();
+    const monto = parseFloat(montoTexto);
+
+    if (!productoIdActual || isNaN(monto) || monto <= 0) {
+      alert("Por favor ingresa un monto válido mayor a 0");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('monto', monto);   // Enviamos el monto en pesos
+
+    fetch(`/add_to_carrito/${productoIdActual}/`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken')
+      }
+    })
+    .then(response => {
+      if (response.redirected) {
+        window.location.href = response.url;
+      } else if (response.ok) {
+        window.location.href = '/carrito/';
+      } else {
+        response.text().then(text => alert("Error: " + text));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error de conexión");
+    });
+  }
+</script>
+{% endblock %}

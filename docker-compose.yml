@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16
+    container_name: db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pudu_supremo
+      POSTGRES_PASSWORD: pUdu5itO1403
+      POSTGRES_DB: distribuidora_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pudu_supremo -d distribuidora_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - traefik-proxy
+
+  django:
+    build: .
+    container_name: distribuidora-django-v2
+    restart: unless-stopped
+    working_dir: /app
+    command: gunicorn --bind 0.0.0.0:8000 distribuidora.wsgi:application
+    volumes:
+      - ./:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    environment:
+      - DEBUG=False
+      - ALLOWED_HOSTS=distribuidoratalagante.cloud,www.distribuidoratalagante.cloud,187.77.33.165,localhost
+      - SECRET_KEY=Pudu_supremo_django_talagante_2026_chacareromeOwlmeOwl_k9m4q8r5t1v3w6y0z2b5n8j0
+      - DATABASE_URL=postgres://pudu_supremo:pUdu5itO1403@db:5432/distribuidora_db
+      - TIME_ZONE=America/Santiago
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - traefik-proxy
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - django
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/static:ro
+      - media_volume:/media:ro
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.rule=Host(`distribuidoratalagante.cloud`) || Host(`www.distribuidoratalagante.cloud`)"
+      - "traefik.http.routers.nginx.entrypoints=websecure"
+      - "traefik.http.routers.nginx.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nginx.loadbalancer.server.port=80"
+
+networks:
+  traefik-proxy:
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:

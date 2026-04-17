@@ -1,0 +1,16 @@
+{
+    "configuracion": {
+        "granel": {
+            "habilitado": true,
+            "precision_decimal": 3,
+            "unidad_prefijo": "kg",
+            "mostrar_alerta_peso": true
+        },
+        "unidad": {
+            "habilitado": false,
+            "precision_decimal": 0,
+            "unidad_prefijo": "un",
+            "mostrar_alerta_peso": false
+        }
+    }
+}

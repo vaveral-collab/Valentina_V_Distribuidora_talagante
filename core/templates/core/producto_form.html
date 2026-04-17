@@ -1,0 +1,139 @@
+﻿{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Producto - Admin{% endblock %}
+
+{% block content %}
+<div class="container py-5 animate-fade-in">
+    
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                
+                <div class="card-header py-4 px-5 text-white d-flex align-items-center justify-content-between" 
+                     style="background-color: #748C28;">
+                    <h3 class="mb-0 fw-bold">
+                        <i class="bi bi-box-seam me-2"></i>{{ action }} Producto
+                    </h3>
+                    <a href="{% url 'producto_list' %}" class="btn btn-sm btn-outline-light rounded-pill px-3">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                </div>
+
+                <div class="card-body p-5">
+                    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.errors %}
+                            <div class="alert alert-danger rounded-3 mb-4 border-0 shadow-sm">
+                                <h6 class="fw-bold mb-2"><i class="bi bi-exclamation-circle-fill me-2"></i>Error al guardar:</h6>
+                                <ul class="mb-0 small ps-3">
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <h6 class="text-uppercase text-muted fw-bold mb-3 small ls-1">Información Básica</h6>
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Precio (CLP) <span class="text-danger">*</span></label>
+                                <div class="price-input-wrapper">
+                                    <span class="currency-symbol">$</span>
+                                    {{ form.precio }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Stock Actual <span class="text-danger">*</span></label>
+                                {{ form.stock }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Unidad de Medida</label>
+                                {{ form.unidad_medida }}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Nombre del Producto <span class="text-danger">*</span></label>
+                            {{ form.nombre }}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Categoría</label>
+                            {{ form.categoria }}
+                            <div class="form-text">Ej: Lácteos, Abarrotes, Bebidas...</div>
+                        </div>
+
+                        <!-- CAMPO ES GRANEL - BOTÓN SWITCH BONITO -->
+                        <div class="form-check form-switch mb-5 p-4 bg-light rounded-3 border">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="id_es_granel"
+                                   name="es_granel"
+                                   {% if form.es_granel.value %}checked{% endif %}>
+                            <label class="form-check-label fw-bold ms-2 fs-5" for="id_es_granel">
+                                <i class="bi bi-scale me-2"></i>Producto a granel (se vende por kilogramos)
+                            </label>
+                            <div class="form-text small mt-2">
+                                Activa esta opción para productos como queso, arroz suelto, carne, harina, etc.<br>
+                                <strong>Permitirá cantidades decimales</strong> (ej: 1.5 kg, 0.75 kg)
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Tamaño del paquete <span class="text-danger">*</span></label>
+                            {{ form.tamano_paquete }} 
+                            <div class="form-text">Ej: 12 unid por caja, 1 kg, etc.</div>
+                        </div>
+
+                        <h6 class="text-uppercase text-muted fw-bold mb-3 mt-5 small ls-1">Multimedia</h6>
+                        <div class="mb-4 p-4 bg-light rounded-3 border border-dashed text-center">
+                            <i class="bi bi-cloud-arrow-up fs-2 text-muted mb-2 d-block"></i>
+                            <label class="form-label fw-bold small mb-2">Imagen del Producto</label>
+                            {{ form.imagen }}
+                            <div class="form-text mt-2">Formatos aceptados: JPG, PNG. Máx 5MB.</div>
+                        </div>
+
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Código de Barras (Opcional)</label>
+                                {{ form.codigo_barras }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Fecha Vencimiento</label>
+                                {{ form.fecha_vencimiento }}
+                            </div>
+                        </div>
+
+                        <div class="form-check form-switch mb-5 p-3 bg-light rounded-3 border">
+                            {{ form.activo }}
+                            <label class="form-check-label fw-bold ms-2" for="{{ form.activo.id_for_label }}">
+                                Producto Activo (Visible en catálogo)
+                            </label>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-3 pt-3 border-top">
+                            <a href="{% url 'producto_list' %}" class="btn btn-light border rounded-pill px-4 fw-bold">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success rounded-pill px-5 fw-bold shadow-sm" 
+                                    style="background-color: #748C28; border: none;">
+                                <i class="bi bi-check-circle me-2"></i>Guardar Producto
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

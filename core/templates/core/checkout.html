@@ -1,0 +1,302 @@
+﻿{% extends "core/base.html" %}
+{% load static humanize %}
+{% load mathfilters %}
+
+{% block title %}Finalizar Compra — Distribuidora Talagante{% endblock %}
+
+{% block content %}
+<div id="checkout-data" data-subtotal="{{ subtotal_numero|default:0 }}" style="display:none;"></div>
+
+<div class="checkout-page animate-fade-in">
+    <div class="container py-5">
+
+<div class="checkout-page animate-fade-in">
+    <div class="container py-5">
+    <div class="container py-5">
+        <div class="text-center mb-5">
+            <h1 class="display-5 fw-bold mb-2" style="color: #1a1a1a;">
+                Finalizar Compra
+            </h1>
+            <p class="lead text-muted">Revisa tu pedido y confirma los detalles.</p>
+        </div>
+
+        <div class="row g-5">
+            <!-- RESUMEN DE PRODUCTOS -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header bg-dark text-white py-3">
+                        <h4 class="mb-0 fw-bold fs-5">Tu Pedido</h4>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="products-scroll px-4 py-3 bg-white">
+                            {% for item in items %}
+                            <div class="d-flex align-items-center mb-3 pb-3 border-bottom border-light">
+                                <div class="flex-shrink-0">
+                                    {% if item.producto.imagen %}
+                                        <img src="{{ item.producto.imagen.url }}" class="rounded-3 border" style="width: 60px; height: 60px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 60px; height: 60px;">
+                                            <i class="bi bi-box-seam fs-4"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1 fw-bold text-dark">{{ item.producto.nombre }}</h6>
+                                    <small class="text-muted fw-semibold">
+                                        {% if item.es_personalizado and item.monto_pesos %}
+                                            Por monto: ${{ item.monto_pesos|floatformat:0|intcomma }}
+                                        {% else %}
+                                            x {{ item.cantidad|floatformat:0 }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="fw-bold text-dark">
+                                        {% if item.es_personalizado and item.monto_pesos %}
+                                            ${{ item.monto_pesos|floatformat:0|intcomma }}
+                                        {% else %}
+                                            ${{ item.cantidad|mul:item.producto.precio|floatformat:0|intcomma }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="bg-light px-4 py-4 border-top">
+                            <div class="d-flex justify-content-between mb-2 text-muted fw-medium">
+                                <span>Subtotal</span>
+                                <span id="subtotal_valor">${{ subtotal_numero|floatformat:0|intcomma }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-4 text-success fw-bold">
+                                <span>Envío</span>
+                                <span id="texto_envio">Retiro en local – GRATIS</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary">
+                                <span class="fs-4 fw-bold text-dark">Total a Pagar</span>
+                                <span class="fs-2 fw-bolder" style="color: var(--color-primary);" id="total_final">${{ subtotal_numero|floatformat:0|intcomma }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ENVÍO + PAGO -->
+            <div class="col-lg-6">
+                <form method="post" enctype="multipart/form-data" id="form_checkout">
+                    {% csrf_token %}
+
+                    <!-- ENVÍO O RETIRO -->
+                    <div class="card border-0 shadow-lg rounded-4 mb-4">
+                        <div class="card-header bg-primary text-white py-3">
+                            <h5 class="mb-0 fw-bold">¿Cómo recibes tu pedido?</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="payment-card-option animate-hover" for="retiro">
+                                        <input type="radio" name="metodo_envio" value="retiro" id="retiro" checked>
+                                        <div class="card-content shadow-sm p-3 text-center">
+                                            <i class="bi bi-shop fs-1 text-success mb-2"></i>
+                                            <div class="fw-bold">Retiro en Local</div>
+                                            <div class="badge bg-success mt-2">GRATIS</div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-12">
+                                    <label class="payment-card-option animate-hover" for="domicilio">
+                                        <input type="radio" name="metodo_envio" value="domicilio" id="domicilio">
+                                        <div class="card-content shadow-sm p-3 text-center">
+                                            <i class="bi bi-truck fs-1 text-primary mb-2"></i>
+                                            <div class="fw-bold">Envío a Domicilio</div>
+                                            <div class="small text-muted">$1.000</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- BLOQUE DIRECCIÓN (solo visible si elige envío) -->
+                            <div id="bloque_direccion" style="display:none;" class="mt-4 p-5 bg-success text-white rounded-4 text-center">
+                                <h5 class="fw-bold mb-4">¡Perfecto! Selecciona tu comuna</h5>
+                                <div class="row justify-content-center">
+                                    <div class="col-md-8">
+                                        <select name="comuna" id="select_comuna" class="form-select form-select-lg mb-4">
+                                            <option value="">→ Elige tu comuna</option>
+                                            {% for val, texto in comunas_rm %}
+                                            <option value="{{ val }}">{{ texto }}</option>
+                                            {% endfor %}
+                                        </select>
+
+                                        <div class="bg-white text-dark p-4 rounded shadow">
+                                            <p class="mb-3 fw-bold">
+                                                Te contactaremos por WhatsApp para confirmar la dirección exacta
+                                            </p>
+                                            <a href="https://wa.me/56949071013" target="_blank" class="btn btn-success btn-lg">
+                                                Abrir WhatsApp
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MÉTODO DE PAGO -->
+                    <div class="card border-0 shadow-lg rounded-4">
+                        <div class="card-header bg-dark text-white py-3">
+                            <h5 class="mb-0 fw-bold">Método de Pago</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="payment-options-grid mb-4">
+                                <label class="payment-card-option animate-hover" for="transferencia">
+                                    <input type="radio" name="metodo_pago" value="transferencia" id="transferencia" checked>
+                                    <div class="card-content shadow-sm">
+                                        <div class="icon-box brand-icon-box">
+                                            <i class="bi bi-bank fs-3"></i>
+                                        </div>
+                                        <div class="text-content">
+                                            <span class="option-title fw-bold">Transferencia Bancaria</span>
+                                            <span class="option-desc small text-muted">Adjunta comprobante</span>
+                                        </div>
+                                        <div class="check-circle"><i class="bi bi-check-lg"></i></div>
+                                    </div>
+                                </label>
+
+                                <label class="payment-card-option animate-hover" for="efectivo">
+                                    <input type="radio" name="metodo_pago" value="efectivo" id="efectivo">
+                                    <div class="card-content shadow-sm">
+                                        <div class="icon-box brand-icon-box">
+                                            <i class="bi bi-cash-stack fs-3"></i>
+                                        </div>
+                                        <div class="text-content">
+                                            <span class="option-title fw-bold">Efectivo al Retirar</span>
+                                            <span class="option-desc small text-muted">Paga en el local</span>
+                                        </div>
+                                        <div class="check-circle"><i class="bi bi-check-lg"></i></div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- SECCIÓN COMPROBANTE (solo visible si elige transferencia) -->
+                            <div id="seccion-transferencia" class="mb-4">
+                                <div class="alert bg-light border-0 shadow-sm mb-3">
+                                    <h6 class="fw-bold mb-3" style="color: var(--color-primary);">
+                                        Datos Bancarios
+                                    </h6>
+                                    <ul class="list-unstyled mb-0 small fw-medium text-dark">
+                                        <li><strong>Banco:</strong> Banco Estado</li>
+                                        <li><strong>Tipo:</strong> Cuenta Corriente</li>
+                                        <li><strong>N° Cuenta:</strong> 123-456-789</li>
+                                        <li><strong>RUT:</strong> 77.777.777-7</li>
+                                        <li><strong>Correo:</strong> pagos@talagante.cl</li>
+                                    </ul>
+                                </div>
+                                <input type="file" name="comprobante" class="form-control" accept="image/*">
+                                <small class="text-muted">Sube captura del comprobante de transferencia</small>
+                            </div>
+
+                            <textarea name="mensaje" class="form-control mb-3" rows="2" placeholder="Mensaje adicional (opcional)"></textarea>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fs-5 fw-bold rounded-pill shadow-lg">
+                                CONFIRMAR PEDIDO
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Leer subtotal desde el data attribute
+    let subtotalElem = document.getElementById('checkout-data');
+    let SUBTOTAL = 0;
+    if (subtotalElem) {
+        let rawSubtotal = subtotalElem.getAttribute('data-subtotal');
+        // Eliminar cualquier carácter no numérico (espacios, puntos, comas)
+        SUBTOTAL = parseInt(rawSubtotal.replace(/[^\d-]/g, ''), 10);
+        if (isNaN(SUBTOTAL)) SUBTOTAL = 0;
+    }
+    console.log("Subtotal:", SUBTOTAL);
+
+    // Referencias a elementos
+    const radioRetiro = document.getElementById('retiro');
+    const radioDomicilio = document.getElementById('domicilio');
+    const bloqueDireccion = document.getElementById('bloque_direccion');
+    const selectComuna = document.getElementById('select_comuna');
+    const textoEnvio = document.getElementById('texto_envio');
+    const totalFinalSpan = document.getElementById('total_final');
+
+    function actualizarEnvio() {
+        const esEnvio = radioDomicilio && radioDomicilio.checked;
+        let texto = "Retiro en local – GRATIS";
+        let costo = 0;
+        
+        if (esEnvio) {
+            texto = "Despacho a domicilio – $1.000";
+            costo = 1000;
+        }
+        
+        if (textoEnvio) textoEnvio.textContent = texto;
+        
+        if (totalFinalSpan) {
+            const totalFinal = SUBTOTAL + costo;
+            totalFinalSpan.textContent = "$" + totalFinal.toLocaleString('es-CL');
+        }
+        
+        if (bloqueDireccion) {
+            bloqueDireccion.style.display = esEnvio ? 'block' : 'none';
+        }
+        
+        if (selectComuna) {
+            if (esEnvio) {
+                selectComuna.setAttribute('required', 'required');
+            } else {
+                selectComuna.removeAttribute('required');
+                selectComuna.value = '';
+            }
+        }
+    }
+
+    if (radioRetiro && radioDomicilio) {
+        radioRetiro.addEventListener('change', actualizarEnvio);
+        radioDomicilio.addEventListener('change', actualizarEnvio);
+    }
+
+    if (selectComuna) {
+        selectComuna.addEventListener('change', function() {
+        });
+    }
+
+    // Método de pago
+    const radioTransferencia = document.getElementById('transferencia');
+    const radioEfectivo = document.getElementById('efectivo');
+    const seccionTransferencia = document.getElementById('seccion-transferencia');
+
+    function actualizarMetodoPago() {
+        if (!seccionTransferencia) return;
+        const inputFile = seccionTransferencia.querySelector('input[type="file"]');
+        if (radioTransferencia && radioTransferencia.checked) {
+            seccionTransferencia.style.display = 'block';
+            if (inputFile) inputFile.setAttribute('required', 'required');
+        } else {
+            seccionTransferencia.style.display = 'none';
+            if (inputFile) {
+                inputFile.removeAttribute('required');
+                inputFile.value = '';
+            }
+        }
+    }
+
+    if (radioTransferencia && radioEfectivo) {
+        radioTransferencia.addEventListener('change', actualizarMetodoPago);
+        radioEfectivo.addEventListener('change', actualizarMetodoPago);
+        actualizarMetodoPago();
+    }
+
+    actualizarEnvio();
+});
+</script>
+{% endblock %}

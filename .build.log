@@ -1,0 +1,27 @@
+2026-04-10T18:26:34.688118 Project directory: /home/shon/proyectos/distribuidora_talagante
+2026-04-10T18:26:34.688711 Pulling project images
+2026-04-10T18:26:34.689672 ------------------------------
+2026-04-10T18:26:34.802930  django Skipped No image to be pulled
+2026-04-10T18:26:34.803549  Image postgres:16 Pulling 
+2026-04-10T18:26:34.805161  Image nginx:alpine Pulling 
+2026-04-10T18:26:42.507434  Image nginx:alpine Pulled 
+2026-04-10T18:26:46.697215  Image postgres:16 Pulled 
+2026-04-10T18:26:46.741923 ------------------------------
+2026-04-10T18:26:46.742047 Deploying project
+2026-04-10T18:26:46.742751 ------------------------------
+2026-04-10T18:26:47.130976  Container db Recreate 
+2026-04-10T18:26:47.589191  Container db Recreated 
+2026-04-10T18:26:47.589240  Container distribuidora-django-v2 Recreate 
+2026-04-10T18:26:47.803614  Container distribuidora-django-v2 Recreated 
+2026-04-10T18:26:47.804002  Container nginx Recreate 
+2026-04-10T18:26:48.010006  Container nginx Recreated 
+2026-04-10T18:26:48.031579  Container db Starting 
+2026-04-10T18:26:48.325021  Container db Started 
+2026-04-10T18:26:48.325068  Container db Waiting 
+2026-04-10T18:26:58.826416  Container db Healthy 
+2026-04-10T18:26:58.826680  Container distribuidora-django-v2 Starting 
+2026-04-10T18:26:58.960326  Container distribuidora-django-v2 Started 
+2026-04-10T18:26:58.960863  Container nginx Starting 
+2026-04-10T18:26:59.259326  Container nginx Started 
+2026-04-10T18:26:59.274462 ------------------------------
+2026-04-10T18:26:59.274519 Project deployed successfully

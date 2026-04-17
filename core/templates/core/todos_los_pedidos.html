@@ -1,0 +1,132 @@
+{% extends "core/base.html" %}
+{% load humanize %}
+
+{% block title %}Todos los Pedidos — Distribuidora Talagante{% endblock %}
+
+{% block content %}
+<div class="container py-5 animate-fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h1 class="fw-bold mb-1" style="color: #1a1a1a;">
+            <i class="bi bi-receipt text-primary me-2"></i>Todos los Pedidos
+        </h1>
+        <div>
+            <a href="{% url 'admin_home' %}" class="btn btn-outline-dark rounded-pill px-4 fw-bold shadow-sm">
+                <i class="bi bi-arrow-left me-2"></i>Volver al Panel
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtro rápido por estado -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body bg-light">
+            <form method="get" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label class="form-label fw-bold text-dark mb-0">Filtrar por estado:</label>
+                </div>
+                <div class="col-auto">
+                    <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Todos los estados</option>
+                        {% for valor, label in estados_choices %}
+                            <option value="{{ valor }}" {% if estado_filtro == valor %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if estado_filtro %}
+                <div class="col-auto">
+                    <a href="{% url 'todos_los_pedidos' %}" class="btn btn-outline-secondary btn-sm">Limpiar filtro</a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de pedidos -->
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="mb-0 text-center fw-bold">Listado Completo de Pedidos</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Envío</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for orden in ordenes %}
+                    <tr>
+                        <td class="fw-bold">#{{ orden.id }}</td>
+                        <td>
+                            <div class="fw-bold">{{ orden.usuario.username }}</div>
+                            <small class="text-muted">{{ orden.usuario.perfil.nombre_completo|default:"--" }}</small>
+                        </td>
+                        <td>{{ orden.fecha|date:"d/m/Y H:i" }}</td>
+                        <td class="fw-bold text-success">${{ orden.total|floatformat:0|intcomma }}</td>
+                        <td>
+                            {% if orden.direccion_envio.metodo == 'retiro' %}
+                                <span class="badge bg-success">Retiro en local</span>
+                            {% else %}
+                                <span class="badge bg-primary">Envío a {{ orden.direccion_envio.get_comuna_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill px-3 py-2 
+                                {% if orden.estado == 'pendiente' %}bg-warning text-dark
+                                {% elif orden.estado == 'confirmacion' %}bg-info text-white
+                                {% elif orden.estado == 'preparacion' %}bg-primary text-white
+                                {% elif orden.estado == 'despacho' %}bg-orange text-white
+                                {% elif orden.estado == 'completado' %}bg-success text-white
+                                {% else %}bg-secondary text-white{% endif %}">
+                                {{ orden.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'orden_detail' orden.id %}" class="btn btn-sm btn-outline-primary" title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ orden.get_whatsapp_link }}" target="_blank" class="btn btn-sm btn-outline-success" title="WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 opacity-25 mb-3 d-block"></i>
+                            No hay pedidos registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if ordenes.has_other_pages %}
+        <div class="card-footer bg-white border-top py-3">
+            <nav aria-label="Paginación">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if ordenes.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ ordenes.previous_page_number }}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}">Anterior</a></li>
+                    {% endif %}
+                    <li class="page-item active"><span class="page-link bg-primary border-primary">Página {{ ordenes.number }} de {{ ordenes.paginator.num_pages }}</span></li>
+                    {% if ordenes.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ ordenes.next_page_number }}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}">Siguiente</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .bg-orange { background-color: #fd7e14; }
+</style>
+{% endblock %}

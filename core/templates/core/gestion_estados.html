@@ -1,0 +1,165 @@
+{% extends "core/base.html" %}
+{% load humanize %}
+{% load mathfilters %}
+
+{% block title %}Gestión de Estados - Admin{% endblock %}
+
+{% block content %}
+<div class="container py-5 animate-fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h1 class="fw-bold mb-1" style="color: #1a1a1a;">
+            <i class="bi bi-sliders text-primary me-2"></i>Gestión de Estados
+        </h1>
+        <div>
+            <a href="{% url 'admin_home' %}" class="btn btn-outline-dark rounded-pill px-4 fw-bold shadow-sm me-2">
+                <i class="bi bi-arrow-left me-2"></i>Volver al Panel
+            </a>
+            <a href="?export=excel" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+                <i class="bi bi-file-earmark-spreadsheet me-2"></i>Exportar a Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabla de pedidos -->
+    <div class="card border-0 shadow-lg rounded-4 mb-5">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                        <th>Envío</th>
+                        <th>Estado</th>
+                        <th>Cambiar Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in ordenes %}
+                    <tr>
+                        <td><strong>#{{ o.id }}</strong></td>
+                        <td>
+                            <div class="fw-bold">{{ o.usuario.username }}</div>
+                            <small class="text-muted">{{ o.usuario.perfil.nombre_completo|default:"--" }}</small>
+                        </td>
+                        <td class="fw-bold">${{ o.total|intcomma }}</td>
+                        <td>
+                            {% if o.direccion_envio.metodo == 'retiro' %}
+                                <span class="badge bg-success">Retiro en local</span>
+                            {% else %}
+                                <span class="badge bg-primary">
+                                    Envío → {{ o.direccion_envio.get_comuna_display }}
+                                </span>
+                                <br><small class="text-muted">Coordinar por WhatsApp</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge rounded-pill px-3 py-2
+                                {% if o.estado == 'pendiente' %}bg-warning
+                                {% elif o.estado == 'confirmacion' %}bg-info
+                                {% elif o.estado == 'preparacion' %}bg-primary
+                                {% elif o.estado == 'despacho' %}bg-orange
+                                {% elif o.estado == 'completado' %}bg-success
+                                {% else %}bg-secondary{% endif %}">
+                                {{ o.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    {% for valor, label in estados_choices %}
+                                        <!-- Ocultar opción 'cancelado' para usuarios que no son superuser -->
+                                        {% if valor == 'cancelado' and not user.is_superuser %}
+                                            <!-- No mostrar Cancelado para staff -->
+                                        {% else %}
+                                            <option value="{{ valor }}" {% if o.estado == valor %}selected{% endif %}>{{ label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="orden_id" value="{{ o.id }}">
+                            </form>
+                        </td>
+                        <td>
+                            <a href="{% url 'orden_detail' o.id %}" class="btn btn-sm btn-primary">Ver</a>
+                            <a href="{{ o.get_whatsapp_link }}" target="_blank" class="btn btn-sm btn-success">WhatsApp</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center py-5 text-muted">No hay pedidos</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Ventas Diarias -->
+    <h2 class="fw-bold mb-4 text-primary"><i class="bi bi-calendar-day me-2"></i>Ventas Diarias (Últimos 30 días)</h2>
+    {% for dia, ordenes_dia in ventas_diarias_agrupadas %}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <strong>{{ dia|date:"l d \d\e F \d\e Y" }}</strong>
+            <span class="badge bg-light text-dark fs-5">
+                Total del día: ${{ ordenes_dia|sum_attribute:'total'|intcomma }}
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#ID</th>
+                            <th>Hora</th>
+                            <th>Cliente</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in ordenes_dia %}
+                        <tr>
+                            <td><strong>#{{ o.id }}</strong></td>
+                            <td>{{ o.fecha|date:"H:i" }}</td>
+                            <td>{{ o.usuario.username }}</td>
+                            <td class="fw-bold text-success">${{ o.total|intcomma }}</td>
+                            <td><span class="badge bg-{{ o.estado|lower }}">{{ o.get_estado_display }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">No hay ventas en los últimos 30 días.</div>
+    {% endfor %}
+
+    <!-- Resumen Mensual -->
+    <h2 class="fw-bold mb-4 mt-5 text-primary"><i class="bi bi-calendar-month me-2"></i>Resumen Mensual</h2>
+    <div class="card shadow">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="bg-primary text-white">
+                    <tr>
+                        <th>Mes</th>
+                        <th>N° Pedidos</th>
+                        <th>Total Ventas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mes in ventas_mensuales %}
+                    <tr>
+                        <td><strong>{{ mes.nombre_mes }} {{ mes.año }}</strong></td>
+                        <td class="text-center">{{ mes.num_pedidos }}</td>
+                        <td class="fw-bold text-success">${{ mes.total_ventas|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted py-4">No hay datos mensuales</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
