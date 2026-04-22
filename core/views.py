@@ -1041,7 +1041,7 @@ def gestion_estados(request):
         'estado_filtro': estado_filtro,
         'estados_choices': Orden.ESTADOS,
         'ventas_diarias_agrupadas': ventas_diarias_agrupadas,   # ← NUEVO
-        'ventas_mensuales': ventas_mensuales,                   # ← NUEVO
+        'ventas_mensuales': ventas_mensuales,                   
     }
     return render(request, 'core/gestion_estados.html', context)
 
